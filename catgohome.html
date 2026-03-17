@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鈺潤生技 | 長距離酒精測試</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #f0f4f8; margin: 0; padding: 15px; overflow: hidden; touch-action: none; user-select: none; }
+        .brand { color: #2c3e50; font-weight: bold; margin-bottom: 5px; }
+        #message { font-size: 1.1rem; font-weight: bold; height: 60px; color: #34495e; padding: 10px; margin-bottom: 10px; }
+        
+        /* 遊戲大容器 */
+        #game-stage {
+            position: relative;
+            width: 100%;
+            height: calc(100vh - 250px); /* 動態計算高度，確保距離夠長 */
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 15px;
+            overflow: visible;
+        }
+
+        /* 起點區域 */
+        #start-zone {
+            position: absolute;
+            top: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+        }
+
+        /* 終點區域 */
+        #target-zone {
+            position: absolute;
+            bottom: 10px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-around;
+            padding: 0 10px;
+        }
+
+        /* 貓咪本體 */
+        #cat-player {
+            width: 70px;
+            height: 70px;
+            background: #fff3e0;
+            border: 3px solid #ff9f43;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            cursor: grab;
+            touch-action: none;
+            position: relative;
+            z-index: 1000;
+        }
+
+        /* 目標框 */
+        .slot {
+            width: 80px;
+            height: 90px;
+            border: 2px dashed #bdc3c7;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.8);
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .slot span { font-size: 30px; margin-bottom: 5px; }
+
+        button {
+            padding: 12px 40px;
+            font-size: 1rem;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            margin-bottom: 10px;
+        }
+        
+        .active-pulse { animation: pulse 1s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
+    </style>
+</head>
+<body>
+
+    <div class="brand">鈺潤生技 TRUVIV LAB</div>
+    <div id="message">點擊「開始」，按住貓咪滑到底部！</div>
+    
+    <button id="startBtn" onclick="initGame()">開始測試</button>
+
+    <div id="game-stage">
+        <div id="start-zone">
+            <div id="cat-player" style="visibility: hidden;">🐱</div>
+        </div>
+
+        <div id="target-zone">
+            <div class="slot" id="slot-rabbit"><span>🐰</span>Rabbit</div>
+            <div class="slot" id="slot-cat"><span>🐱</span>Cat</div>
+            <div class="slot" id="slot-pig"><span>🐷</span>Pig</div>
+        </div>
+    </div>
+
+    <script>
+        const cat = document.getElementById('cat-player');
+        const msg = document.getElementById('message');
+        const startBtn = document.getElementById('startBtn');
+        let startTime, isDragging = false;
+
+        function initGame() {
+            msg.innerHTML = "專注！貓咪即將出現...";
+            startBtn.style.visibility = "hidden";
+            cat.style.visibility = "hidden";
+            cat.style.top = "0px";
+            cat.style.left = "0px";
+            cat.classList.remove('active-pulse');
+
+            setTimeout(() => {
+                cat.style.visibility = "visible";
+                cat.classList.add('active-pulse');
+                msg.innerHTML = "👈 按住貓咪，拖向底部的 Cat 框！";
+            }, Math.random() * 1500 + 1000);
+        }
+
+        // 使用 Pointer Events (兼容滑鼠與觸控)
+        cat.onpointerdown = function(e) {
+            isDragging = true;
+            startTime = Date.now();
+            cat.classList.remove('active-pulse');
+            cat.setPointerCapture(e.pointerId);
+            msg.innerHTML = "🏃 衝啊！快滑到底部！";
+        };
+
+        cat.onpointermove = function(e) {
+            if (!isDragging) return;
+            // 讓貓咪跟著手指/滑鼠移動
+            const stage = document.getElementById('game-stage').getBoundingClientRect();
+            let x = e.clientX - stage.left - (cat.offsetWidth / 2);
+            let y = e.clientY - stage.top - (cat.offsetHeight / 2);
+            
+            cat.style.position = 'absolute';
+            cat.style.left = x + 'px';
+            cat.style.top = y + 'px';
+        };
+
+        cat.onpointerup = function(e) {
+            if (!isDragging) return;
+            isDragging = false;
+            cat.releasePointerCapture(e.pointerId);
+            checkResult(e.clientX, e.clientY);
+        };
+
+        function checkResult(x, y) {
+            const duration = Date.now() - startTime;
+            const catRect = document.getElementById('slot-cat').getBoundingClientRect();
+            const rabbitRect = document.getElementById('slot-rabbit').getBoundingClientRect();
+            const pigRect = document.getElementById('slot-pig').getBoundingClientRect();
+
+            if (isInside(x, y, catRect)) {
+                showFinalResult('cat', duration);
+            } else if (isInside(x, y, rabbitRect)) {
+                showFinalResult('rabbit', duration);
+            } else if (isInside(x, y, pigRect)) {
+                showFinalResult('pig', duration);
+            } else {
+                msg.innerHTML = "❌ 沒進框！手抖了嗎？重測一次。";
+                resetBtn();
+            }
+        }
+
+        function isInside(x, y, rect) {
+            return x > rect.left && x < rect.right && y > rect.top && y < rect.bottom;
+        }
+
+        function showFinalResult(type, time) {
+            let res = `耗時：${time}ms<br>`;
+            if (type === 'cat') {
+                if (time < 1000) res += "<span style='color:green'>✅ 反應敏捷，還可以多喝幾杯！</span>";
+                else if (time < 1700) res += "<span style='color:orange'>🍺 微醉，喝口水，可以再來一杯。</span>";
+                else if (time < 2000) res += "<span style='color:red'>😵 醉了！手腳開始慢了。</span>";
+                else res += "<span style='color:darkred'>😵 太醉了！這距離你滑了這麼久？</span>";
+            } else if (type === 'rabbit') {
+                res += "<span style='color:red'>❌ 移到兔子！太醉了，下次先吃「酒霸皇牌」。</span>";
+            } else if (type === 'pig') {
+                res += "<span style='color:brown'>❌ 移到豬！你是太醉，還是年紀大手腳不聽使喚？</span>";
+            }
+            msg.innerHTML = res;
+            resetBtn();
+        }
+
+        function resetBtn() {
+            startBtn.style.visibility = "visible";
+            startBtn.innerText = "再測一次";
+        }
+    </script>
+</body>
+</html>
